@@ -32,7 +32,7 @@ class minimap_image:
 
     def load_images(self):
         self.islands = Image.open(f'maps/{self.mapname}/minimap.png')
-        self.background = Image.open(f'maps/{self.mapname}/minimap_water.png')
+        self.water = Image.open(f'maps/{self.mapname}/minimap_water.png')
 
     def load_caps(self):
         self.caps = {}
@@ -71,7 +71,7 @@ class minimap_image:
         base.save(filename)
 
     def draw_minimap_image(self, base, size, offset):
-        base.paste(self.background.resize(size, Image.NEAREST), offset)
+        base.paste(self.water.resize(size, Image.NEAREST), offset)
         islands = self.islands.resize(size, Image.NEAREST)
         base.paste(islands, offset, mask=islands)
         return base

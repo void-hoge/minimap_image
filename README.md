@@ -8,7 +8,7 @@ Generate minimap images for tactics planning. Set the images as the background o
 
 ## Usage
 ```
-$ ./minimap_image.py --replay <json unpacked replay> --out <dst filename> --size 1920x1080
+$ ./minimap_image.py --json <json unpacked replay> --out <dst filename> --size <width>x<height>
 ```
 - `--size` is optional. The default size is 1920x1080.
 
