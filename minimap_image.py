@@ -4,6 +4,7 @@ from PIL import Image, ImageFont, ImageDraw
 import json
 import sys
 
+BACKGROUND_COLOR = 32,32,32
 GRID_FONTFACE = 'Roboto-Medium.ttf'
 GRID_FONTSIZE = 25
 GRID_COLOR = 255,255,255,40
@@ -14,13 +15,14 @@ CAPZONE_NEUTRAL_COLOR = 255,255,255
 CAPZONE_ALLY_COLOR = 50,255,50
 CAPZONE_ENEMY_COLOR = 255,0,0
 CAPZONE_TRANSPARENT = 30
+CAPZONE_OUTLINE_TRANSPARENT = 128
 CAPZONE_FONT_TRANSPARENT = 255
 MAPINFO_PATH = 'maps/manifest.json'
 
 
 class minimap_image:
     def __init__(self, replayfile):
-        self.mapinfo = json.loads(open('maps/manifest.json', 'r').read())
+        self.mapinfo = json.loads(open(MAPINFO_PATH, 'r').read())
         self.replaydata = json.loads(open(replayfile, 'r').read())
         self.mapname = self.replaydata['hidden']['map']
         self.mapsize = self.mapinfo[self.mapname][1]
@@ -42,82 +44,93 @@ class minimap_image:
                 'type':cap['componentsState']['controlPoint']['type'],
             }
 
-    def render(self, size, filename):
-        base = Image.new('RGB', size, color=(255,255,255))
-        base = self.draw_minimap_image(base, size)
-        base = self.draw_grid(base, size, GRID_COLOR, 2)
+    def render(self, backgroundsize, filename):
+        width, height = backgroundsize
+        if width < height:
+            size = width, width
+            offset = 0, (height-width)//2
+        else:
+            size = height, height
+            offset = (width-height)//2, 0
+        base = Image.new('RGB', backgroundsize, color=BACKGROUND_COLOR)
+        base = self.draw_minimap_image(base, size, offset)
+        base = self.draw_grid(base, size, offset, GRID_COLOR, 2)
         fontface = ImageFont.truetype(GRID_FONTFACE, GRID_FONTSIZE)
-        base = self.draw_grid_name(base, size, GRID_FONTCOLOR, fontface, (10, 10))
+        base = self.draw_grid_name(base, size, offset, GRID_FONTCOLOR, fontface, (10,7))
         fontface = ImageFont.truetype(CAPZONE_FONTFACE, CAPZONE_FONTSIZE)
         base = self.draw_capture_zones(
-            base, size,
+            base, size, offset,
             CAPZONE_NEUTRAL_COLOR,
             CAPZONE_ALLY_COLOR,
             CAPZONE_ENEMY_COLOR,
             CAPZONE_TRANSPARENT,
             CAPZONE_FONT_TRANSPARENT,
+            CAPZONE_OUTLINE_TRANSPARENT,
             fontface)
         base.save(filename)
 
-    def draw_minimap_image(self, base, size):
-        base.paste(self.background.resize(size, Image.NEAREST))
+    def draw_minimap_image(self, base, size, offset):
+        base.paste(self.background.resize(size, Image.NEAREST), offset)
         islands = self.islands.resize(size, Image.NEAREST)
-        base.paste(islands, mask=islands)
+        base.paste(islands, offset, mask=islands)
         return base
 
-    def draw_grid(self, base, size, color, width):
+    def draw_grid(self, base, size, offset, color, width):
         draw = ImageDraw.Draw(base, 'RGBA')
-        x, y = size
-        gx, gy = x/10, y/10
+        x, y = offset
+        sx, sy = size
+        gx, gy = sx/10, sy/10
         for i in range(10):
-            draw.line((0,gy*i,x,gy*i), fill=color, width=width)
-            draw.line((gx*i,0,gx*i,y), fill=color, width=width)
+            draw.line((x,gy*i+y,sx+x,gy*i+y), fill=color, width=width)
+            draw.line((gx*i+x,y,gx*i+x,sy+y), fill=color, width=width)
         return base
 
-    def draw_grid_name(self, base, size, color, fontface, centeroffset):
+    def draw_grid_name(self, base, size, offset, color, fontface, center):
         draw = ImageDraw.Draw(base, 'RGBA')
-        x, y = size
-        gx, gy = x/10, y/10
-        vcenter, hcenter = centeroffset
+        x, y = offset
+        sx, sy = size
+        gx, gy = sx/10, sy/10
+        vcenter, hcenter = center
         for i, c in enumerate('ABCDEFGHIJ'):
             left, top, right, bottom = fontface.getbbox(c)
             width, height = right - left, bottom - top
-            pos = vcenter-width/2, gy*i + gy/2 - height/2
+            pos = vcenter-width/2 + x, gy*i + gy/2 - height/2 + y
             draw.text(pos, c, font=fontface, fill=color)
         for i in range(0,10):
             left, top, right, bottom = fontface.getbbox(str(i+1))
             width, height = right - left, bottom - top
-            pos = gx*i + gx/2 - width/2, hcenter-bottom+height
+            pos = gx*i + gx/2 - width/2 + x, hcenter-bottom+height + y
             draw.text(pos, str(i+1), font=fontface, fill=color)
         return base
 
-    def draw_capture_zones(self, base, size, neutral, ally, enemy, trans, fonttrans, fontface):
+    def draw_capture_zones(self, base, size, offset, neutral, ally, enemy, trans, fonttrans, outlinetrans, fontface):
         draw = ImageDraw.Draw(base, 'RGBA')
-        ix, iy = size
-        xscale, yscale = ix/self.mapsize, iy/self.mapsize
+        x, y = offset
+        sx, sy = size
+        xscale, yscale = sx/self.mapsize, sy/self.mapsize
         for index, cap in self.caps.items():
             radius = cap['radius']
             position = cap['position']
             name = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[index]
-            upperleft = (position['x']-radius)*xscale + ix/2, -(position['z']+radius)*yscale + iy/2
-            lowerright = (position['x']+radius)*xscale + ix/2, -(position['z']-radius)*yscale + iy/2
+            upperleft = (position['x']-radius)*xscale + sx/2 + x, -(position['z']+radius)*yscale + sy/2 + y
+            lowerright = (position['x']+radius)*xscale + sx/2 + x, -(position['z']-radius)*yscale + sy/2 + y
             if cap['teamId'] == -1:
                 color = neutral
             elif cap['teamId'] == 0:
                 color = ally
             elif cap['teamId'] == 1:
                 color = enemy
-            draw.ellipse((upperleft, lowerright), fill=color+(trans,))
+            draw.ellipse((upperleft, lowerright), fill=color+(trans,), outline=color+(outlinetrans,))
             if cap['type'] == 1:
                 left, top, right, bottom = fontface.getbbox(name)
                 width, height = right - left, bottom - top
-                pos = position['x']*xscale + ix/2 - width/2, -position['z']*yscale + iy/2 - bottom + height/2
+                pos = position['x']*xscale + sx/2 - width/2 + x, -position['z']*yscale + sy/2 - bottom + height/2 + y
                 draw.text(pos, name, font=fontface, fill=color+(fonttrans,))
         return base
     
 def main():
     renderer = minimap_image(sys.argv[1])
-    renderer.render((1080, 1080), 'test.png')
+    renderer.render((1920, 1080), 'test.png')
 
 if __name__ == '__main__':
     main()
