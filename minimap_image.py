@@ -45,7 +45,7 @@ class minimap_image:
                 'type':cap['componentsState']['controlPoint']['type'],
             }
 
-    def render(self, backgroundsize, filename):
+    def render(self, backgroundsize, filename=None):
         width, height = backgroundsize
         if width < height:
             size = width, width
@@ -68,7 +68,10 @@ class minimap_image:
             CAPZONE_FONT_TRANSPARENT,
             CAPZONE_OUTLINE_TRANSPARENT,
             fontface)
-        base.save(filename)
+        if filename:
+            base.save(filename)
+        else:
+            base.save(f'{self.mapname}.png')
 
     def draw_minimap_image(self, base, size, offset):
         base.paste(self.water.resize(size, Image.NEAREST), offset)
@@ -134,7 +137,7 @@ def main():
     import re
     parser = argparse.ArgumentParser()
     parser.add_argument('--json', type=str, required=True)
-    parser.add_argument('--out', type=str, required=True)
+    parser.add_argument('--out', type=str, required=False)
     parser.add_argument('--size', type=str, required=False)
     result = parser.parse_args()
     sizestr = result.size
