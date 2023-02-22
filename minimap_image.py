@@ -26,6 +26,7 @@ class minimap_image:
         self.replaydata = json.loads(open(replayfile, 'r').read())
         self.mapname = self.replaydata['hidden']['map']
         self.mapsize = self.mapinfo[self.mapname][1]
+        print(f'{self.mapname}: {self.mapsize*30//1000}x{self.mapsize*30//1000}km')
         self.load_images()
         self.load_caps()
 
@@ -129,8 +130,22 @@ class minimap_image:
         return base
     
 def main():
-    renderer = minimap_image(sys.argv[1])
-    renderer.render((1920, 1080), 'test.png')
+    import argparse
+    import re
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--json', type=str, required=True)
+    parser.add_argument('--out', type=str, required=True)
+    parser.add_argument('--size', type=str, required=False)
+    result = parser.parse_args()
+    sizestr = result.size
+    try:
+        m = re.match(r'(\d+)x(\d+)',sizestr)
+        size = int(m.group(1)), int(m.group(2))
+    except TypeError:
+        size = 1920, 1080
+
+    renderer = minimap_image(result.json)
+    renderer.render(size, result.out)
 
 if __name__ == '__main__':
     main()
